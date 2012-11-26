@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+
+	<style type="text/css">
+		html, body {
+			margin: 0;
+			padding: 0;
+		}
+
+		article {
+			width: 640px;
+			margin: 0 auto;
+		}
+
+		video, canvas {
+			width: 640px;
+			height: 480px;
+		}
+		canvas {
+			display: none;
+		}
+
+		ul.images {
+			padding: 0;
+		}
+		ul.images li {
+			display: inline-block;
+			margin: 0 10px 10px 0;
+			position: relative;
+		}
+		ul.images img {
+			max-width: 152px;
+		}
+		ul.images li:nth-child(4n) {
+			margin-right: 0;
+		}
+
+		a.remove {
+			position: absolute;
+			bottom: 10px;
+			right: 5px;
+			background: white;
+			color: #333;
+			font-weight: bold;
+			font-size: 115%;
+			padding: 0 4px;
+			text-decoration: none;
+		}
+	</style>
+
+	<script type="text/javascript" src="./zepto.js"></script>
+	<script type="text/javascript">
+		navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.getUserMedia;
+		window.URL = window.URL || window.webkitURL;
+
+		window.onload = function() {
+			var onCameraFail = function (e) {
+				console.log('Camera did not work.', e);
+			};
+			navigator.getUserMedia({video: true}, function (stream) {
+				var video = $('.live').get(0);
+				video.src = window.URL.createObjectURL(stream);
+
+				var images = $('.images');
+				var canvas = $('.snapshot').get(0); // Can't use zepto unfortunately.
+				var ctx = canvas.getContext('2d');
+
+				function insertImg(src) {
+					var listItem = $('<li><img src="' + src + '" /><a href="#" class="remove">x</a></li>');
+					listItem.click(_remove);
+					images.prepend(listItem);
+				}
+
+				function _remove(e) {
+					e.preventDefault();
+
+					var listItem = $(e.target).parent();
+					var src = listItem.find('img').attr('src');
+					for (var i in webcam_images) {
+						if (webcam_images[i] !== src) continue;
+
+						webcam_images.splice(i, 1);
+						listItem.remove();
+						break;
+					}
+
+					localStorage.setItem('webcam_images', JSON.stringify(webcam_images));
+				}
+
+				var webcam_images = JSON.parse(localStorage.getItem('webcam_images')) || [];
+				for (var i in webcam_images) {
+					insertImg(webcam_images[i]);
+				}
+
+				var takePicture = $('.takePicture');
+				takePicture.click(function() {
+					if (stream) {
+						ctx.drawImage(video, 0, 0);
+						webcam_images.push(canvas.toDataURL('image/png'));
+						insertImg(webcam_images[webcam_images.length - 1]);
+
+						// Store for the reload.
+						localStorage.setItem('webcam_images', JSON.stringify(webcam_images)); // Should really catch the err but meh.
+					}
+				});
+			}, onCameraFail);
+		};
+	</script>
+
+</head>
+<body>
+	<article>
+		<video autoplay controls class="live"></video>
+		<button class="takePicture">Take Picture</button>
+
+		<canvas width="640" height="480" class="snapshot"></canvas>
+		<ul class="images"></ul>
+	</article>
+</body>
+</html>
